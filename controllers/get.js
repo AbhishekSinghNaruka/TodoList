@@ -1,32 +1,40 @@
 //jshint esversion:6
 const {Item} = require("../models/item.js");
-const List = require("../models/List.js");
+const {List} = require("../models/List.js");
 const defaultItems = require("../models/defaultItems.js");
 const _ = require("lodash");
-
-
+const {User} = require("../models/User.js");
+const date = require("../date.js");
 
 function renderData(req,res){
-Item.find({},function(err, itemsFound){
-    if(itemsFound.length===0){
-      Item.insertMany(defaultItems,function(err){
+  if(req.isAuthenticated())
+    {
+      //console.log(req.user);
+      User.findById(req.user._id,function(err,userFound){
         if(err)
           console.log(err);
-        else
-          console.log("Sucessfully inserted deafult item to database");
+        else{
+          if(userFound){
+              if(!userFound.items.length){
+                  userFound.items=defaultItems;
+                  userFound.save();
+                    res.render("list",{Header:date.getDate() , items:defaultItems} );
+              }
+              else
+                res.render("list",{Header:date.getDate() , items:userFound.items} );
+          }
+        }
       });
-        res.render("list",{Header:"Today" , items:defaultItems} );   //date.getDate()
     }
-    else{
-        res.render("list",{Header:"Today" , items:itemsFound} );    //date.getDate()
-    }
-  });
+  else
+    res.redirect("/login");
 }
 
 function renderListData(req,res){
   const listName = _.capitalize(req.params.listName);
   if(listName!= "favicon.ico" && listName!=""){
-    List.findOne({name:listName},function(err, results){
+    User.findById(req.user._id,function(err,userFound){
+      userFound.List.founOne({name:listName},function(err, results){
         if(err)
           console.log(err);
         else{
@@ -35,13 +43,15 @@ function renderListData(req,res){
               name: listName,
               items: defaultItems
             });
-            list.save();
+            userFound.List.push(list);
+            userFound.save();
             res.render("list",{Header:listName , items:defaultItems});
           }
           else{
             res.render("list",{Header:listName , items:results.items});
           }
         }
+      });
     });
   }
 }
